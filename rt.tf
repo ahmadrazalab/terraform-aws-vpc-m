@@ -2,42 +2,41 @@
 # Public Route Table: Associated with public subnets, contains a route to the IGW.
 
 # Public Route Table
-resource "aws_route_table" "prod_public_rt" {
-  vpc_id = aws_vpc.prod_vpc.id
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.vpcblock.id
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.prod_igw.id
+    gateway_id = aws_internet_gateway.igwblock.id
   }
   tags = merge({
-    Name = "prod-public-route-table"
-  }, var.vpc_tags)
+    Name = "${var.project}-${var.environment}-public-rt"
+  }, var.tags)
 }
 
-# Associate Public Subnets with Public Route Table
-resource "aws_route_table_association" "prod_public_rt_assoc" {
+resource "aws_route_table_association" "public" {
   count          = length(var.public_subnet_cidrs)
-  subnet_id      = aws_subnet.prod_public_subnets[count.index].id
-  route_table_id = aws_route_table.prod_public_rt.id
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
 }
 
-# Private Route Table with a route to the NAT Gateway. Associate it with the private subnets.
-# Private Route Table: Associated with private subnets, contains a route to the NAT Gateway.
 
-# Private Route Table
-resource "aws_route_table" "prod_private_rt" {
-  vpc_id = aws_vpc.prod_vpc.id
+# Create 3 private route tables, each using its own NAT gateway
+resource "aws_route_table" "private" {
+  count  = length(var.private_subnet_cidrs)
+  vpc_id = aws_vpc.vpcblock.id
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.prod_nat_gw.id
+    nat_gateway_id = aws_nat_gateway.natblock[count.index].id
   }
   tags = merge({
-    Name = "prod-private-route-table"
-  }, var.vpc_tags)
+    Name = "${var.project}-${var.environment}-private-rt-${element(["a","b","c"], count.index)}"
+  }, var.tags)
 }
 
-# Associate Private Subnets with Private Route Table
-resource "aws_route_table_association" "prod_private_rt_assoc" {
+# Associate each private subnet with its own route table
+resource "aws_route_table_association" "private" {
   count          = length(var.private_subnet_cidrs)
-  subnet_id      = aws_subnet.prod_private_subnets[count.index].id
-  route_table_id = aws_route_table.prod_private_rt.id
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[count.index].id
 }

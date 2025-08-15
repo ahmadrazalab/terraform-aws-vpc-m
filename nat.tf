@@ -2,17 +2,23 @@
 # Create a NAT Gateway in one of the public subnets.
 
 # Create NAT Gateway in a Public Subnet
-resource "aws_eip" "prod_nat_eip" {
+
+
+# Create 3 EIPs for 3 NAT Gateways
+resource "aws_eip" "nat" {
+  count = length(var.public_subnet_cidrs)
   domain = "vpc"
   tags = merge({
-    Name = "prod-nat-eip"
-  }, var.vpc_tags)
+    Name = "${var.project}-${var.environment}-nat-eip-${element(["a","b","c"], count.index)}"
+  }, var.tags)
 }
 
-resource "aws_nat_gateway" "prod_nat_gw" {
-  allocation_id = aws_eip.prod_nat_eip.id
-  subnet_id     = aws_subnet.prod_public_subnets[0].id
+# Create 3 NAT Gateways, one per public subnet
+resource "aws_nat_gateway" "natblock" {
+  count         = length(var.public_subnet_cidrs)
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
   tags = merge({
-    Name = "prod-nat-gateway"
-  }, var.vpc_tags)
+    Name = "${var.project}-${var.environment}-nat-gateway-${element(["a","b","c"], count.index)}"
+  }, var.tags)
 }
